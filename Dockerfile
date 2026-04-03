@@ -7,7 +7,7 @@ ENV MKL_THREADING_LAYER=GNU
 
 COPY . /app
 
-# conda-forge para evitar pip
+# conda-forge para stack geoespacial + pip só para topojson
 RUN micromamba install -y -n base -c conda-forge \
     python=3.11 \
     pip \
@@ -23,9 +23,10 @@ RUN micromamba install -y -n base -c conda-forge \
     shapely \
     pyproj \
     fiona \
-    && python -m pip install --no-cache-dir topojson \
+    && micromamba run -n base python -m pip install --no-cache-dir topojson \
+    && micromamba run -n base python -c "from topojson import Topology; import fastapi, geopandas, rasterio, sklearn; print('build dependencies ok')" \
     && micromamba clean --all --yes
 
 EXPOSE 8040
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8040"]
+CMD ["micromamba", "run", "-n", "base", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8040"]
