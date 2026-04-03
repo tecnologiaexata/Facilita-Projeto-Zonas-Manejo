@@ -10,6 +10,7 @@ COPY . /app
 # conda-forge para evitar pip
 RUN micromamba install -y -n base -c conda-forge \
     python=3.11 \
+    pip \
     fastapi \
     uvicorn \
     pydantic \
@@ -22,6 +23,7 @@ RUN micromamba install -y -n base -c conda-forge \
     shapely \
     pyproj \
     fiona \
+    && python -m pip install --no-cache-dir topojson \
     && micromamba clean --all --yes
 
 EXPOSE 8040
