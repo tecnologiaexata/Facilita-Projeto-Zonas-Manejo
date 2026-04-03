@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Tuple, Optional, Any
 import os
+import re
 import time
+import unicodedata
 
 import numpy as np
 import geopandas as gpd
@@ -23,6 +25,16 @@ class AlignmentResult:
     rasters: Dict[str, DatasetReader]              # attribute -> opened aligned dataset
     raster_paths: Dict[str, Path]                  # attribute -> new (or original) path
     report: Dict[str, Any]                         # what happened
+
+
+def _sanitize_filename_part(value: str, fallback: str = "atributo") -> str:
+    text = unicodedata.normalize("NFKD", str(value or "")).encode(
+        "ascii", "ignore"
+    ).decode("ascii")
+    text = re.sub(r"[^\w\s.-]", "_", text)
+    text = re.sub(r"[/\\]+", "_", text)
+    text = re.sub(r"[\s_-]+", "_", text).strip("._")
+    return text or fallback
 
 
 # -----------------------------
@@ -227,8 +239,8 @@ def align_to_aoi_grid(
         src_res = src.res
         resampling = _resampling_for(src_res, target_cell_m)
 
-        run_id = (inputs.aoi.index.name or "run")
-        out_path = out_dir / f"{attr}_aligned_{int(target_cell_m)}m.tif"
+        attr_filename = _sanitize_filename_part(attr)
+        out_path = out_dir / f"{attr_filename}_aligned_{int(target_cell_m)}m.tif"
 
         raster_report = {
             "input_path": str(inputs.raster_paths.get(attr, "")),
