@@ -1,0 +1,77 @@
+{
+  "job": {
+    "area_name": "pivo"
+  },
+  "aoi": {
+    "source": "url_or_file",
+    "id": null,
+    "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/AOI_FILE.kml",
+    "layer": "LAYER_NAME_IF_APPLICABLE"
+  },
+
+  "rasters": [
+    {
+      "attribute": "ATTRIBUTE_NAME",
+      "source": "url_or_file",
+      "path": null,
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/ATTRIBUTE_10m.tif"
+    }
+  ],
+
+  "mode": "auto | threshold | hotspot",
+
+  "user_choices": {
+    "k": null,
+    "min_zone_area_ha": 2.0
+  },
+
+  "mode_params": {
+    "attribute": "ATTRIBUTE_NAME_IF_THRESHOLD",
+    "classes": [
+      {
+        "id": 1,
+        "label": "CLASS_LABEL",
+        "min": null,
+        "max": null
+      }
+    ],
+
+    "selected_attributes": [
+      "ATTRIBUTE_1",
+      "ATTRIBUTE_2"
+    ],
+
+    "classification_library": {
+      "source": "exemplo_ou_rec_interna_ou_modulo_inteligencia",
+      "version": "v1",
+      "attributes": {}
+    },
+
+    "hotspot_logic": {
+      "method": "score_sum",
+      "weights": {},
+      "zone_thresholds": []
+    },
+
+    "target_rules": [
+      {
+        "attribute": "ATTRIBUTE_1",
+        "operator": ">=",
+        "value": 1.0
+      }
+    ],
+
+    "negative_split_quantile": 0.5
+  },
+
+  "output": {
+    "format": "gpkg_or_shp",
+    "include_stats": true,
+    "include_quicklooks": true
+  },
+
+  "metadata": {
+    "run_id": "OPTIONAL_ID",
+    "notes": "Optional notes"
+  }
+}

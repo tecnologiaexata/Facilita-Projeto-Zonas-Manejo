@@ -1,0 +1,35 @@
+{
+  "job": {
+    "area_name": "pivo"
+  },
+  "aoi": {
+    "source": "url",
+    "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/pivo_contorno.kml",
+    "layer": "contour"
+  },
+  "rasters": [
+    {
+      "attribute": "yield",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/yield_10m.tif"
+    }
+  ],
+  "mode": "threshold",
+  "user_choices": {
+    "min_zone_area_ha": 2.0
+  },
+  "mode_params": {
+    "attribute": "yield",
+    "classes": [
+      { "id": 1, "label": "Baixa", "max": 74.5 },
+      { "id": 2, "label": "Media", "min": 74.5, "max": 83.7 },
+      { "id": 3, "label": "Alta", "min": 83.7 }
+    ],
+    "units": "same_as_raster"
+  },
+  "output": {
+    "format": "shp",
+    "include_stats": true,
+    "include_quicklooks": true
+  }
+}

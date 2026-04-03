@@ -1,0 +1,40 @@
+{
+  "job": {
+    "area_name": "pivo"
+  },
+  "aoi": {
+    "source": "url",
+    "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/pivo_contorno.kml",
+    "layer": "contour"
+  },
+  "rasters": [
+    {
+      "attribute": "P",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/P_10m.tif"
+    },
+    {
+      "attribute": "Ca",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/Ca_10m.tif"
+    }
+  ],
+  "mode": "hotspot",
+  "user_choices": {
+    "min_zone_area_ha": 2.0
+  },
+  "mode_params": {
+    "hotspot_mode": "target",
+    "selected_attributes": ["P", "Ca"],
+    "target_rules": [
+      { "attribute": "P", "operator": ">=", "value": 45.0 },
+      { "attribute": "Ca", "operator": ">=", "value": 35.0 }
+    ],
+    "negative_split_quantile": 0.5
+  },
+  "output": {
+    "format": "shp",
+    "include_stats": true,
+    "include_quicklooks": true
+  }
+}

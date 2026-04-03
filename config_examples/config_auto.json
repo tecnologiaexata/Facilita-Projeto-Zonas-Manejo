@@ -1,0 +1,41 @@
+{
+  "job": {
+    "area_name": "pivo"
+  },
+  "aoi": {
+    "source": "url",
+    "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/pivo_contorno.kml",
+    "layer": "contour"
+  },
+  "rasters": [
+    {
+      "attribute": "yield",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/yield_10m.tif"
+    },
+    {
+      "attribute": "eca",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/eca_10m.tif"
+    },
+    {
+      "attribute": "slope",
+      "source": "url",
+      "url": "https://facilita.public.blob.vercel-storage.com/zonas-manejo/slope_10m.tif"
+    }
+  ],
+  "mode": "auto",
+  "user_choices": {
+    "k": null,
+    "min_zone_area_ha": 2.0
+  },
+  "output": {
+    "format": "gpkg",
+    "include_stats": true,
+    "include_quicklooks": true
+  },
+  "metadata": {
+    "run_id": "optional-client-run-id",
+    "notes": "Rasters generated upstream and provided as public blob URLs."
+  }
+}
