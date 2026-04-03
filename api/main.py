@@ -135,7 +135,7 @@ def generate_zones(payload: Dict[str, Any]) -> Dict[str, Any]:
                     selected_attributes,
                 )
 
-        result = run_pipeline(cfg=cfg)
+        result = run_pipeline(cfg=cfg, logger=run_logger)
         warnings: list[str] = []
         publication = None
         tif_url = None
@@ -152,6 +152,7 @@ def generate_zones(payload: Dict[str, Any]) -> Dict[str, Any]:
             publication = publish_zoneamento_raster(
                 cfg,
                 tif_path=published_raster_path,
+                logger=run_logger,
             )
             warnings.extend(publication.warnings)
             tif_url = publication.tif_url

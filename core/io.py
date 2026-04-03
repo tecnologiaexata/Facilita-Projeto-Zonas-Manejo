@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import mimetypes
 import re
 import shutil
@@ -316,7 +317,10 @@ def build_inputs_report(inputs: LoadedInputs) -> Dict[str, Any]:
 # -----------------------------
 # Public API
 # -----------------------------
-def load_inputs(cfg: ZonesRequest) -> LoadedInputs:
+def load_inputs(
+    cfg: ZonesRequest,
+    logger: Optional[logging.Logger] = None,
+) -> LoadedInputs:
     """
     Load AOI + rasters from the config.
 
@@ -333,12 +337,30 @@ def load_inputs(cfg: ZonesRequest) -> LoadedInputs:
     - Caller is responsible for closing rasters (use close_inputs()).
     """
     download_dir = _ensure_download_dir(cfg)
+    if logger:
+        logger.info("Inputs | preparing download directory at %s", download_dir)
     downloaded_assets: List[DownloadedAsset] = []
 
     aoi_path, aoi_reference, aoi_download = _resolve_aoi_reference(cfg.aoi, download_dir)
     if aoi_download is not None:
         downloaded_assets.append(aoi_download)
+        if logger:
+            logger.info(
+                "Inputs | AOI downloaded | source=%s | resolved=%s | local=%s",
+                aoi_download.source_url,
+                aoi_download.resolved_url,
+                aoi_download.local_path,
+            )
+    elif logger:
+        logger.info("Inputs | AOI local path resolved to %s", aoi_path)
     aoi_gdf = _load_aoi(aoi_path, layer=cfg.aoi.layer)
+    if logger:
+        logger.info(
+            "Inputs | AOI loaded | features=%s | crs=%s | bounds=%s",
+            len(aoi_gdf),
+            aoi_gdf.crs,
+            tuple(map(float, aoi_gdf.total_bounds)),
+        )
 
     rasters: Dict[str, DatasetReader] = {}
     raster_paths: Dict[str, Path] = {}
@@ -356,11 +378,34 @@ def load_inputs(cfg: ZonesRequest) -> LoadedInputs:
         )
         if raster_download is not None:
             downloaded_assets.append(raster_download)
+            if logger:
+                logger.info(
+                    "Inputs | raster downloaded | attribute=%s | source=%s | resolved=%s | local=%s",
+                    raster_ref.attribute,
+                    raster_download.source_url,
+                    raster_download.resolved_url,
+                    raster_download.local_path,
+                )
+        elif logger:
+            logger.info(
+                "Inputs | raster local path resolved | attribute=%s | local=%s",
+                raster_ref.attribute,
+                raster_path,
+            )
 
         ds = _open_raster(raster_path, raster_ref.attribute)
         rasters[raster_ref.attribute] = ds
         raster_paths[raster_ref.attribute] = raster_path
         raster_references[raster_ref.attribute] = raster_reference
+        if logger:
+            logger.info(
+                "Inputs | raster opened | attribute=%s | crs=%s | res=%s | shape=(h=%s,w=%s)",
+                raster_ref.attribute,
+                ds.crs,
+                tuple(map(float, ds.res)),
+                ds.height,
+                ds.width,
+            )
 
     if cfg.mode == "threshold" and len(rasters) != 1:
         raise ValueError("threshold mode requires exactly one raster.")
@@ -371,6 +416,14 @@ def load_inputs(cfg: ZonesRequest) -> LoadedInputs:
         missing = sorted(selected - set(rasters.keys()))
         if missing:
             raise ValueError(f"hotspot mode missing rasters for attributes: {missing}")
+
+    if logger:
+        logger.info(
+            "Inputs | completed | mode=%s | rasters=%s | downloaded_assets=%s",
+            cfg.mode,
+            list(rasters.keys()),
+            len(downloaded_assets),
+        )
 
     return LoadedInputs(
         aoi=aoi_gdf,

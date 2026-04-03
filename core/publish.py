@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import logging
 import mimetypes
 import os
 from pathlib import Path
@@ -342,6 +343,7 @@ def publish_zoneamento_raster(
     cfg: ZonesRequest,
     *,
     tif_path: Optional[str | Path],
+    logger: Optional[logging.Logger] = None,
 ) -> PublicationResult:
     warnings: List[str] = []
 
@@ -371,14 +373,23 @@ def publish_zoneamento_raster(
     external_response: Optional[Dict[str, Any]] = None
     raster_id: Optional[int] = None
     status = "success"
+    if logger:
+        logger.info("Publish | starting | tif_path=%s", local_tif_path)
 
     try:
+        blob_name = _build_blob_name(cfg, local_tif_path)
+        if logger:
+            logger.info("Publish | uploading tif to blob | blob_name=%s", blob_name)
         tif_url = _upload_file_to_blob(
             local_tif_path,
-            _build_blob_name(cfg, local_tif_path),
+            blob_name,
             content_type="image/tiff",
         )
+        if logger:
+            logger.info("Publish | tif uploaded | tif_url=%s", tif_url)
     except Exception as error:
+        if logger:
+            logger.error("Publish | tif upload failed | error=%s", error)
         return PublicationResult(
             status="warning",
             tif_url=None,
@@ -393,9 +404,19 @@ def publish_zoneamento_raster(
         tif_url=tif_url,
         tif_local_path=local_tif_path,
     )
+    if logger:
+        logger.info(
+            "Publish | add_raster payload built | keys=%s",
+            sorted(payload.keys()),
+        )
 
     missing_fields = _missing_add_raster_fields(payload)
     if missing_fields:
+        if logger:
+            logger.warning(
+                "Publish | add_raster payload missing fields | fields=%s",
+                missing_fields,
+            )
         warnings.append(
             "Payload para add_raster_interpolados com campos ausentes: "
             + ", ".join(missing_fields)
@@ -411,14 +432,23 @@ def publish_zoneamento_raster(
         )
 
     try:
+        if logger:
+            logger.info("Publish | notifying add_raster_interpolados")
         external_response = _post_add_raster(payload)
         raster_id = _extract_raster_id(external_response)
+        if logger:
+            logger.info(
+                "Publish | add_raster response received | raster_id=%s",
+                raster_id,
+            )
         if raster_id is None:
             warnings.append(
                 "Resposta do add_raster_interpolados recebida sem id do raster."
             )
             status = "warning"
     except Exception as error:
+        if logger:
+            logger.error("Publish | add_raster notification failed | error=%s", error)
         warnings.append(str(error))
         status = "warning"
 

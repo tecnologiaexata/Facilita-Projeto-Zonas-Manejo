@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 import re
@@ -106,6 +107,7 @@ def run_pipeline(
     export_intermediate: bool = True,
     export_final: bool = True,
     smoothing_params: Optional[Dict[str, Any]] = None,
+    logger: Optional[logging.Logger] = None,
 ) -> PipelineResult:
     """
     Orchestrates the zones pipeline.
@@ -117,6 +119,14 @@ def run_pipeline(
     - hotspot mode fully supported
     """
     paths = _get_output_paths(cfg, cfg.mode)
+    if logger:
+        logger.info(
+            "Pipeline | initialized | mode=%s | area_name=%s | temp_dir=%s | final_dir=%s",
+            cfg.mode,
+            cfg.job.area_name,
+            paths["temp_dir"],
+            paths["final_dir"],
+        )
 
     if smoothing_params is None:
         smoothing_params = {
@@ -133,8 +143,10 @@ def run_pipeline(
         # ----------------------------------
         # 1) Load inputs
         # ----------------------------------
-        inputs = load_inputs(cfg)
+        inputs = load_inputs(cfg, logger=logger)
         inputs_report = build_inputs_report(inputs)
+        if logger:
+            logger.info("Pipeline | inputs loaded")
 
         # ----------------------------------
         # 2) Alignment
@@ -146,15 +158,20 @@ def run_pipeline(
             aligned_rasters = inputs.rasters
             alignment_report["status"] = "passed_strict"
             alignment_report["details"] = None
+            if logger:
+                logger.info("Pipeline | alignment strict passed")
         elif alignment_mode == "auto_fix":
             aligned = align_to_aoi_grid(
                 inputs,
                 target_cell_m=target_cell_m,
                 out_dir=paths["temp_dir"],
+                logger=logger,
             )
             aligned_rasters = aligned.rasters
             alignment_report["status"] = "auto_fixed"
             alignment_report["details"] = aligned.report
+            if logger:
+                logger.info("Pipeline | alignment auto-fix completed")
         else:
             raise ValueError("alignment_mode must be 'strict' or 'auto_fix'.")
 
@@ -164,8 +181,12 @@ def run_pipeline(
         if cfg.mode == "threshold":
             attr = cfg.mode_params["attribute"]
             ds = aligned_rasters[attr]
+            if logger:
+                logger.info("Pipeline | threshold mode | attribute=%s", attr)
 
             if cfg.dry_run:
+                if logger:
+                    logger.info("Pipeline | threshold dry-run | computing preview")
                 preview = compute_threshold_preview(
                     aoi=inputs.aoi,
                     ds=ds,
@@ -203,6 +224,8 @@ def run_pipeline(
                 ds=ds,
                 classes=cfg.mode_params["classes"],
             )
+            if logger:
+                logger.info("Pipeline | threshold classification done | stats=%s", class_res.stats)
 
             classified_raster_path = None
             if export_intermediate:
@@ -219,6 +242,8 @@ def run_pipeline(
                 crs=ds.crs,
                 nodata_id=0
             )
+            if logger:
+                logger.info("Pipeline | threshold polygonize done | stats=%s", poly_res.stats)
 
             polygons_raw_path = None
             if export_intermediate:
@@ -234,6 +259,8 @@ def run_pipeline(
                 min_area_ha=cfg.user_choices.min_zone_area_ha,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | threshold min area merge done | stats=%s", merged_res.stats)
 
             polygons_minarea_path = None
             if export_intermediate:
@@ -253,6 +280,8 @@ def run_pipeline(
                 chaikin_offset=smoothing_params.get("chaikin_offset", 0.25),
                 min_gap_area_ha=smoothing_params.get("min_gap_area_ha", 0.0),
             )
+            if logger:
+                logger.info("Pipeline | threshold smoothing done | stats=%s", smooth_res.stats)
 
             polygons_smoothed_path = None
             if export_intermediate:
@@ -268,6 +297,8 @@ def run_pipeline(
                 rasters=aligned_rasters,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | threshold statistics done | summary=%s", stats_res.summary)
 
             final_zones_path = None
             internal_polygons_path = None
@@ -291,6 +322,12 @@ def run_pipeline(
                     published_zone_arr,
                     published_zone_profile,
                 )
+                if logger:
+                    logger.info(
+                        "Pipeline | threshold final exports written | vector=%s | tif=%s",
+                        final_zones_path,
+                        published_raster_path,
+                    )
 
             if export_intermediate:
                 internal_polygons_path = _write_vector(
@@ -338,12 +375,20 @@ def run_pipeline(
         # 4) Auto mode
         # ----------------------------------
         elif cfg.mode == "auto":
+            if logger:
+                logger.info(
+                    "Pipeline | auto mode | k=%s | min_zone_area_ha=%s",
+                    cfg.user_choices.k,
+                    cfg.user_choices.min_zone_area_ha,
+                )
             auto_res = run_auto_classification(
                 rasters=aligned_rasters,
                 k=cfg.user_choices.k,
                 k_min=2,
                 k_max=8,
             )
+            if logger:
+                logger.info("Pipeline | auto classification done | stats=%s", auto_res.stats)
 
             first_ds = next(iter(aligned_rasters.values()))
 
@@ -362,6 +407,8 @@ def run_pipeline(
                 crs=first_ds.crs,
                 nodata_id=0
             )
+            if logger:
+                logger.info("Pipeline | auto polygonize done | stats=%s", poly_res.stats)
 
             polygons_raw_path = None
             if export_intermediate:
@@ -377,6 +424,8 @@ def run_pipeline(
                 min_area_ha=cfg.user_choices.min_zone_area_ha,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | auto min area merge done | stats=%s", merged_res.stats)
 
             polygons_minarea_path = None
             if export_intermediate:
@@ -396,6 +445,8 @@ def run_pipeline(
                 chaikin_offset=smoothing_params.get("chaikin_offset", 0.25),
                 min_gap_area_ha=smoothing_params.get("min_gap_area_ha", 0.0),
             )
+            if logger:
+                logger.info("Pipeline | auto smoothing done | stats=%s", smooth_res.stats)
 
             polygons_smoothed_path = None
             if export_intermediate:
@@ -411,6 +462,8 @@ def run_pipeline(
                 rasters=aligned_rasters,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | auto statistics done | summary=%s", stats_res.summary)
 
             final_zones_path = None
             internal_polygons_path = None
@@ -434,6 +487,12 @@ def run_pipeline(
                     published_zone_arr,
                     published_zone_profile,
                 )
+                if logger:
+                    logger.info(
+                        "Pipeline | auto final exports written | vector=%s | tif=%s",
+                        final_zones_path,
+                        published_raster_path,
+                    )
 
             if export_intermediate:
                 internal_polygons_path = _write_vector(
@@ -484,6 +543,13 @@ def run_pipeline(
         elif cfg.mode == "hotspot":
             hotspot_mode = cfg.mode_params.get("hotspot_mode")
             selected_attributes = cfg.mode_params.get("selected_attributes", [])
+            if logger:
+                logger.info(
+                    "Pipeline | hotspot mode | hotspot_mode=%s | selected_attributes=%s | min_zone_area_ha=%s",
+                    hotspot_mode,
+                    selected_attributes,
+                    cfg.user_choices.min_zone_area_ha,
+                )
 
             if hotspot_mode == "library":
                 hotspot_res = run_hotspot_library(
@@ -502,6 +568,8 @@ def run_pipeline(
 
             else:
                 raise ValueError("hotspot_mode inválido.")
+            if logger:
+                logger.info("Pipeline | hotspot classification done | stats=%s", hotspot_res.stats)
 
             first_ds = next(iter(aligned_rasters.values()))
 
@@ -520,6 +588,8 @@ def run_pipeline(
                 crs=first_ds.crs,
                 nodata_id=0
             )
+            if logger:
+                logger.info("Pipeline | hotspot polygonize done | stats=%s", poly_res.stats)
 
             polygons_raw_path = None
             if export_intermediate:
@@ -535,6 +605,8 @@ def run_pipeline(
                 min_area_ha=cfg.user_choices.min_zone_area_ha,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | hotspot min area merge done | stats=%s", merged_res.stats)
 
             polygons_minarea_path = None
             if export_intermediate:
@@ -554,6 +626,8 @@ def run_pipeline(
                 chaikin_offset=smoothing_params.get("chaikin_offset", 0.25),
                 min_gap_area_ha=smoothing_params.get("min_gap_area_ha", 0.0),
             )
+            if logger:
+                logger.info("Pipeline | hotspot smoothing done | stats=%s", smooth_res.stats)
 
             polygons_smoothed_path = None
             if export_intermediate:
@@ -569,6 +643,8 @@ def run_pipeline(
                 rasters=aligned_rasters,
                 zone_field="zone_id"
             )
+            if logger:
+                logger.info("Pipeline | hotspot statistics done | summary=%s", stats_res.summary)
 
             final_gdf = _add_hotspot_labels(stats_res.stats_gdf, hotspot_mode)
             internal_gdf = stats_res.zones_gdf.copy()
@@ -595,6 +671,12 @@ def run_pipeline(
                     published_zone_arr,
                     published_zone_profile,
                 )
+                if logger:
+                    logger.info(
+                        "Pipeline | hotspot final exports written | vector=%s | tif=%s",
+                        final_zones_path,
+                        published_raster_path,
+                    )
 
             if export_intermediate:
                 internal_polygons_path = _write_vector(

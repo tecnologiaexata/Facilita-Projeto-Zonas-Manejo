@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Dict, Tuple, Optional, Any
 import os
@@ -197,7 +198,8 @@ def align_to_aoi_grid(
     target_cell_m: float = 10.0,
     out_dir: Path | str = "outputs/temp",
     dst_nodata: float = -9999.0,
-    fill_missing_with_nodata: bool = True
+    fill_missing_with_nodata: bool = True,
+    logger: Optional[logging.Logger] = None,
 ) -> AlignmentResult:
     """
     Auto-fix alignment:
@@ -228,6 +230,17 @@ def align_to_aoi_grid(
         "rasters": {}
     }
 
+    if logger:
+        logger.info(
+            "Alignment | target grid | crs=%s | cell_m=%s | bounds=%s | shape=(h=%s,w=%s) | out_dir=%s",
+            target_crs,
+            target_cell_m,
+            snapped_bounds,
+            target_h,
+            target_w,
+            out_dir,
+        )
+
     aligned_paths: Dict[str, Path] = {}
     aligned_datasets: Dict[str, DatasetReader] = {}
 
@@ -254,6 +267,16 @@ def align_to_aoi_grid(
             "filled_missing_with_nodata": fill_missing_with_nodata,
             "dst_nodata": dst_nodata,
         }
+
+        if logger:
+            logger.info(
+                "Alignment | raster start | attribute=%s | src_crs=%s | src_res=%s | resampling=%s | out=%s",
+                attr,
+                src_crs,
+                tuple(map(float, src_res)),
+                resampling.name,
+                out_path,
+            )
 
         # Prepare output profile
         profile = {
@@ -301,5 +324,19 @@ def align_to_aoi_grid(
         aligned_paths[attr] = out_path
         aligned_datasets[attr] = ds_aligned
         report["rasters"][attr] = raster_report
+        if logger:
+            logger.info(
+                "Alignment | raster done | attribute=%s | aligned_path=%s | shape=(h=%s,w=%s)",
+                attr,
+                out_path,
+                ds_aligned.height,
+                ds_aligned.width,
+            )
+
+    if logger:
+        logger.info(
+            "Alignment | completed | rasters=%s",
+            list(aligned_paths.keys()),
+        )
 
     return AlignmentResult(rasters=aligned_datasets, raster_paths=aligned_paths, report=report)
