@@ -86,6 +86,10 @@ class JobOptions(BaseModel):
 class ZonesRequest(BaseModel):
     processo: str = Field("Zoneamento", description="Process label for storage notification")
     atributo: str = Field("Zoneamento", description="Raster attribute label for storage notification")
+    palette: Optional[List[str]] = Field(
+        default=None,
+        description="Optional palette used to convert the final TIFF into PNG on add_raster_interpolados",
+    )
     tipo: Optional[str] = Field(None, description="Area type used by add_raster_interpolados")
     id: Optional[int] = Field(None, description="Area identifier used by add_raster_interpolados")
     tipo_importacao: Optional[int] = Field(None, description="Import type used by add_raster_interpolados")

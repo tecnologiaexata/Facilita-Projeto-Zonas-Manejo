@@ -246,6 +246,7 @@ def build_add_raster_payload(
         "campanha": safra_text,
         "descricao": descricao,
         "url": _coalesce_text(tif_url),
+        "palette": cfg.palette if isinstance(cfg.palette, list) and cfg.palette else None,
         "id_amostragem": _coalesce_int(cfg.id_amostragem),
         "safra": safra_text,
         "safra_id": safra_id,
